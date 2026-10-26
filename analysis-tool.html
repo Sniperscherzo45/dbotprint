@@ -1,0 +1,437 @@
+<!-- ==================== ANALYSIS TOOL ==================== -->
+<div id="analysis-tool-root"></div>
+
+<style>
+  #analysis-tool-root {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #f8fafc;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  }
+
+  .at-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 460px;
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  }
+  .at-loader-spinner {
+    width: 58px;
+    height: 58px;
+    border: 4px solid #bae6fd;
+    border-top-color: #0ea5e9;
+    border-radius: 50%;
+    animation: at-spin 0.85s linear infinite;
+  }
+  .at-loader-text {
+    margin-top: 18px;
+    font-size: 15px;
+    color: #0369a1;
+    font-weight: 500;
+  }
+  @keyframes at-spin { to { transform: rotate(360deg); } }
+
+  .at-header {
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    padding: 12px 14px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+  }
+  .at-tab {
+    background: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .at-tab.active {
+    background: #1e40af;
+    color: white;
+  }
+
+  .at-body { padding: 20px 16px; }
+
+  .at-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+
+  .at-select, .at-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 15px;
+    background: white;
+    margin-bottom: 16px;
+  }
+
+  .at-price-box {
+    background: #f1f5f9;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .at-price {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .at-current-digit {
+    font-size: 32px;
+    font-weight: 800;
+    color: #2563eb;
+  }
+
+  .at-ticks-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .at-ticks-row input {
+    width: 90px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .at-digits-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .at-digits-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .at-digit {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: white;
+    margin: 0 auto;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .at-digit span {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+  .at-digit.highlight {
+    border-color: #3b82f6;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 4px rgba(59,130,246,0.25);
+  }
+
+  .at-footer {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .at-run-btn {
+    background: #14b8a6;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .at-run-btn.stopped {
+    background: #ef4444;
+  }
+  .at-status {
+    font-size: 13px;
+    color: #64748b;
+  }
+</style>
+
+<script>
+(function () {
+  // ================== CONFIG ==================
+  const MARKET_OPTIONS = [
+    { value: "R_10",    label: "Volatility 10 Index" },
+    { value: "R_25",    label: "Volatility 25 Index" },
+    { value: "R_50",    label: "Volatility 50 Index" },
+    { value: "R_75",    label: "Volatility 75 Index" },
+    { value: "R_100",   label: "Volatility 100 Index" },
+    { value: "1HZ10V",  label: "Volatility 10 (1s) Index" },
+    { value: "1HZ15V",  label: "Volatility 15 (1s) Index" },
+    { value: "1HZ25V",  label: "Volatility 25 (1s) Index" },
+    { value: "1HZ30V",  label: "Volatility 30 (1s) Index" },
+    { value: "1HZ50V",  label: "Volatility 50 (1s) Index" },
+    { value: "1HZ75V",  label: "Volatility 75 (1s) Index" },
+    { value: "1HZ90V",  label: "Volatility 90 (1s) Index" },
+    { value: "1HZ100V", label: "Volatility 100 (1s) Index" },
+    { value: "BOOM300",  label: "Boom 300 Index" },
+    { value: "BOOM500",  label: "Boom 500 Index" },
+    { value: "BOOM600",  label: "Boom 600 Index" },
+    { value: "BOOM900",  label: "Boom 900 Index" },
+    { value: "BOOM1000", label: "Boom 1000 Index" },
+    { value: "CRASH300",  label: "Crash 300 Index" },
+    { value: "CRASH500",  label: "Crash 500 Index" },
+    { value: "CRASH600",  label: "Crash 600 Index" },
+    { value: "CRASH900",  label: "Crash 900 Index" },
+    { value: "CRASH1000", label: "Crash 1000 Index" },
+    { value: "JD10",  label: "Jump 10 Index" },
+    { value: "JD25",  label: "Jump 25 Index" },
+    { value: "JD50",  label: "Jump 50 Index" },
+    { value: "JD75",  label: "Jump 75 Index" },
+    { value: "JD100", label: "Jump 100 Index" },
+    { value: "RB100", label: "Range Break 100 Index" },
+    { value: "RB200", label: "Range Break 200 Index" },
+    { value: "RDBULL", label: "Bull Market Index" },
+    { value: "RDBEAR", label: "Bear Market Index" },
+  ];
+
+  const DIGIT_COLORS = [
+    "#3b82f6", "#f59e0b", "#94a3b8", "#94a3b8", "#3b82f6",
+    "#ef4444", "#94a3b8", "#94a3b8", "#94a3b8", "#22c55e"
+  ];
+
+  // ================== STATE ==================
+  let ws = null;
+  let subscriptionId = null;
+  let ticksBuffer = [];
+  let isRunning = false;
+  let currentSymbol = "R_10";
+  let maxTicks = 1000;
+
+  // ================== LOADER ==================
+  function showLoader() {
+    const root = document.getElementById("analysis-tool-root");
+    root.innerHTML = `
+      <div class="at-loader">
+        <div class="at-loader-spinner"></div>
+        <div class="at-loader-text">Loading Analysis Tool...</div>
+      </div>
+    `;
+  }
+
+  // ================== RENDER TOOL ==================
+  function renderTool() {
+    const root = document.getElementById("analysis-tool-root");
+
+    const optionsHtml = MARKET_OPTIONS.map(o =>
+      `<option value="${o.value}" \( {o.value === currentSymbol ? "selected" : ""}> \){o.label}</option>`
+    ).join("");
+
+    root.innerHTML = `
+      <div class="at-header">
+        <button class="at-tab active">Dcircles</button>
+        <button class="at-tab">Signals</button>
+        <button class="at-tab">SL Tools</button>
+        <button class="at-tab">AI Analysis</button>
+      </div>
+
+      <div class="at-body">
+        <div class="at-label">Select Market:</div>
+        <select id="at-market" class="at-select">${optionsHtml}</select>
+
+        <div class="at-price-box">
+          <div class="at-price" id="at-price">—</div>
+          <div class="at-current-digit" id="at-current-digit">—</div>
+        </div>
+
+        <div class="at-ticks-row">
+          <span class="at-label" style="margin:0">Ticks window:</span>
+          <input type="number" id="at-ticks-window" value="${maxTicks}" min="50" max="5000">
+          <span style="font-size:13px;color:#64748b">(50–5000)</span>
+        </div>
+
+        <div class="at-digits-title">
+          <span>Last <span id="at-count">0</span> ticks digit distribution</span>
+          <span id="at-progress">0/0</span>
+        </div>
+
+        <div class="at-digits-grid" id="at-digits">
+          ${[0,1,2,3,4,5,6,7,8,9].map(d => `
+            <div class="at-digit" id="digit-\( {d}" style="background: \){DIGIT_COLORS[d]}">
+              ${d}<span>0.0%</span>
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="at-footer">
+          <button class="at-run-btn" id="at-run-btn">▶ Run</button>
+          <div class="at-status" id="at-status">Ready</div>
+        </div>
+      </div>
+    `;
+
+    // Events
+    document.getElementById("at-market").addEventListener("change", e => {
+      currentSymbol = e.target.value;
+      if (isRunning) restartStream();
+    });
+
+    document.getElementById("at-ticks-window").addEventListener("change", e => {
+      maxTicks = Math.min(5000, Math.max(50, parseInt(e.target.value) || 1000));
+      e.target.value = maxTicks;
+    });
+
+    document.getElementById("at-run-btn").addEventListener("click", toggleRun);
+  }
+
+  // ================== WEBSOCKET (New Public Endpoint) ==================
+  function connect() {
+    if (ws) {
+      try { ws.close(); } catch (e) {}
+    }
+
+    ws = new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public");
+
+    ws.onopen = () => {
+      console.log("Connected to Deriv (public)");
+      document.getElementById("at-status").textContent = "Connected";
+      if (isRunning) startStream();
+    };
+
+    ws.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+
+      if (data.error) {
+        document.getElementById("at-status").textContent = data.error.message || "Error";
+        return;
+      }
+
+      if (data.msg_type === "tick" && data.tick) {
+        const price = data.tick.quote;
+        ticksBuffer.push(price);
+        if (ticksBuffer.length > maxTicks) ticksBuffer.shift();
+        updateUI(price);
+      }
+
+      if (data.subscription) {
+        subscriptionId = data.subscription.id;
+      }
+    };
+
+    ws.onclose = () => {
+      document.getElementById("at-status").textContent = "Disconnected – retrying...";
+      if (isRunning) setTimeout(connect, 2500);
+    };
+
+    ws.onerror = () => {
+      document.getElementById("at-status").textContent = "Connection error";
+    };
+  }
+
+  function startStream() {
+    ticksBuffer = [];
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        ticks: currentSymbol,
+        subscribe: 1
+      }));
+      document.getElementById("at-status").textContent = "Streaming live ticks...";
+    }
+  }
+
+  function stopStream() {
+    if (subscriptionId && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ forget: subscriptionId }));
+    }
+    subscriptionId = null;
+  }
+
+  function restartStream() {
+    stopStream();
+    startStream();
+  }
+
+  function toggleRun() {
+    const btn = document.getElementById("at-run-btn");
+    if (isRunning) {
+      isRunning = false;
+      stopStream();
+      btn.innerHTML = "▶ Run";
+      btn.classList.remove("stopped");
+      document.getElementById("at-status").textContent = "Stopped";
+    } else {
+      isRunning = true;
+      btn.innerHTML = "■ Stop";
+      btn.classList.add("stopped");
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        startStream();
+      } else {
+        connect();
+      }
+    }
+  }
+
+  // ================== UI UPDATE ==================
+  function getLastDigit(price) {
+    const str = price.toFixed(3);
+    return parseInt(str.slice(-1), 10);
+  }
+
+  function updateUI(price) {
+    document.getElementById("at-price").textContent = price.toFixed(3);
+
+    const digit = getLastDigit(price);
+    document.getElementById("at-current-digit").textContent = digit;
+
+    document.querySelectorAll(".at-digit").forEach(el => el.classList.remove("highlight"));
+    const currentEl = document.getElementById(`digit-${digit}`);
+    if (currentEl) currentEl.classList.add("highlight");
+
+    const counts = Array(10).fill(0);
+    ticksBuffer.forEach(p => counts[getLastDigit(p)]++);
+    const total = ticksBuffer.length || 1;
+
+    for (let i = 0; i < 10; i++) {
+      const pct = ((counts[i] / total) * 100).toFixed(1);
+      const el = document.getElementById(`digit-${i}`);
+      if (el) el.innerHTML = `\( {i}<span> \){pct}%</span>`;
+    }
+
+    document.getElementById("at-count").textContent = ticksBuffer.length;
+    document.getElementById("at-progress").textContent = `\( {ticksBuffer.length}/ \){maxTicks}`;
+  }
+
+  // ================== PUBLIC FUNCTION ==================
+  // Call this when user opens the Analysis Tool
+  window.openAnalysisTool = function () {
+    showLoader();
+    setTimeout(() => {
+      renderTool();
+      connect(); // connect in background
+    }, 2000); // 2 second special loader
+  };
+
+})();
+  </script>
